@@ -15,15 +15,22 @@ A production-grade FastAPI REST CRUD API with all requested features has been cr
 ```
 app/
 ├── __init__.py              # Package initialization
-├── main.py                  # FastAPI app + startup/shutdown events
+├── main.py                  # FastAPI composition root + startup/shutdown events
 ├── config.py                # Environment-based configuration (dev/qa/prod)
-├── database.py              # MongoDB connection management (singleton pattern)
-├── models.py                # Pydantic schemas for requests/responses
-├── security.py              # JWT, password hashing, authentication
 ├── middleware.py            # CORS, security headers middleware
-└── routes/
-    ├── __init__.py
-    └── users.py             # Complete CRUD API for users
+├── api/                     # FastAPI routers, schemas, dependencies
+│   └── v1/
+├── core/                    # Shared contracts and auth primitives
+├── modules/                 # Feature modules and use cases
+│   └── users/
+├── providers/               # MongoDB, JWT, password hashing adapters
+│   ├── database/
+│   ├── security/
+│   └── users/
+├── database.py              # Compatibility import for infrastructure database
+├── models.py                # Compatibility import for API schemas
+├── security.py              # Compatibility import for security adapters
+└── routes/                  # Compatibility import for API routers
 ```
 
 ### Configuration & Environment
@@ -230,16 +237,13 @@ make clean               # Clean cache files
 
 ## 🔧 Customization
 
-### Add New Routes
-1. Create new file in `app/routes/`
-2. Define routes with FastAPI router
-3. Include in `app/main.py`
+### Add New Features
+1. Add entities, errors, contracts, and use cases in `app/modules/<feature>/`
+2. Add adapters in `app/providers/<feature>/`
+3. Add FastAPI schemas and routes in `app/api/v1/`
 
 ### Add New Models/Collections
-Use MongoDB collections directly:
-```python
-collection = db["collection_name"]
-```
+Keep raw MongoDB collection access inside infrastructure repository adapters.
 
 ### Extend Security
 - Add roles/permissions in models
@@ -264,9 +268,10 @@ Quick links to detailed deployment guides:
 | File | Purpose |
 |------|---------|
 | `app/config.py` | All configuration management |
-| `app/database.py` | MongoDB connection (singleton) |
-| `app/security.py` | JWT and password utilities |
-| `app/routes/users.py` | All user CRUD endpoints |
+| `app/modules/users/` | User entities, contracts, errors, and use cases |
+| `app/providers/users/` | MongoDB user repository adapter |
+| `app/providers/security/` | JWT and password hashing adapters |
+| `app/api/v1/users.py` | User HTTP endpoints |
 | `app/main.py` | FastAPI app setup & middleware |
 | `.env.*` | Environment-specific settings |
 
@@ -305,8 +310,8 @@ Quick links to detailed deployment guides:
    - Test protected endpoints with JWT token
 
 3. **Customize for Your Needs**
-   - Add more routes in `app/routes/`
-   - Extend user model in `app/models.py`
+   - Add more routes in `app/api/v1/`
+   - Extend the user module in `app/modules/users/`
    - Add roles/permissions as needed
 
 4. **Deploy**

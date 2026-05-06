@@ -1,83 +1,44 @@
-from datetime import datetime, timedelta
+"""Compatibility imports for security adapters.
+
+New code should use app.providers.security and
+app.api.dependencies directly.
+"""
+
+from datetime import timedelta
 from typing import Optional
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from app.config import settings
-
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
+from app.providers.security import BcryptPasswordHasher, JwtTokenService
+from app.api.dependencies import get_current_user_id
 
 
 class SecurityUtils:
-    """Security utility functions."""
+    """Legacy facade over the security infrastructure adapters."""
 
-    @staticmethod
-    def hash_password(password: str) -> str:
-        """Hash a password using bcrypt."""
-        return pwd_context.hash(password)
+    def __init__(self) -> None:
+        self._password_hasher = BcryptPasswordHasher()
+        self._token_service = JwtTokenService()
 
-    @staticmethod
-    def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verify a password against its hash."""
-        return pwd_context.verify(plain_password, hashed_password)
+    def hash_password(self, password: str) -> str:
+        return self._password_hasher.hash(password)
 
-    @staticmethod
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        return self._password_hasher.verify(plain_password, hashed_password)
+
     def create_access_token(
-        data: dict, expires_delta: Optional[timedelta] = None
+        self,
+        data: dict,
+        expires_delta: Optional[timedelta] = None,
     ) -> tuple[str, int]:
-        """Create JWT access token."""
-        to_encode = data.copy()
-
-        if expires_delta:
-            expire = datetime.utcnow() + expires_delta
-        else:
-            expire = datetime.utcnow() + timedelta(
-                hours=settings.JWT_EXPIRATION_HOURS
-            )
-
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(
-            to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+        token = self._token_service.create_access_token(
+            subject=data["sub"],
+            expires_delta=expires_delta,
         )
-        expires_in = int(expires_delta.total_seconds()) if expires_delta else int(
-            timedelta(hours=settings.JWT_EXPIRATION_HOURS).total_seconds()
-        )
-        return encoded_jwt, expires_in
+        return token.access_token, token.expires_in
 
-    @staticmethod
-    def decode_token(token: str) -> dict:
-        """Decode and validate JWT token."""
-        try:
-            payload = jwt.decode(
-                token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
-            )
-            user_id: str = payload.get("sub")
-            if user_id is None:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid authentication credentials",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-            return payload
-        except JWTError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+    def decode_token(self, token: str) -> dict:
+        return {"sub": self._token_service.get_subject(token)}
 
 
 security_utils = SecurityUtils()
 
-
-async def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> str:
-    """Dependency to get current user ID from token."""
-    payload = security_utils.decode_token(credentials.credentials)
-    user_id: str = payload.get("sub")
-    return user_id
+__all__ = ["SecurityUtils", "get_current_user_id", "security_utils"]

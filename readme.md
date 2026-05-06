@@ -20,15 +20,22 @@ A production-grade FastAPI REST CRUD API boilerplate with JWT authentication, CO
 fast-api-secure-boilerplate/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py              # FastAPI app initialization
+│   ├── main.py              # FastAPI app composition root
 │   ├── config.py            # Environment-based configuration
-│   ├── database.py          # MongoDB connection management
-│   ├── models.py            # Pydantic schemas
-│   ├── security.py          # JWT and password utilities
 │   ├── middleware.py        # CORS and security middleware
-│   └── routes/
-│       ├── __init__.py
-│       └── users.py         # User CRUD endpoints
+│   ├── api/                 # FastAPI routers, schemas, dependencies
+│   │   └── v1/
+│   ├── core/                # Shared contracts and auth primitives
+│   ├── modules/             # Feature modules and business use cases
+│   │   └── users/
+│   ├── providers/           # MongoDB, JWT, password hashing adapters
+│   │   ├── database/
+│   │   ├── security/
+│   │   └── users/
+│   ├── database.py          # Compatibility import for database provider
+│   ├── models.py            # Compatibility import for API schemas
+│   ├── security.py          # Compatibility import for security providers
+│   └── routes/              # Compatibility import for API routers
 ├── .env                     # Default local environment
 ├── .env.example             # Example environment template
 ├── .env.dev                 # Development environment
@@ -41,6 +48,17 @@ fast-api-secure-boilerplate/
 └── readme.md
 
 ```
+
+## Architecture
+
+The project uses a production-style modular layout:
+
+- **API**: FastAPI routers, request/response schemas, dependency wiring, and HTTP error mapping.
+- **Core**: shared auth contracts and cross-cutting primitives.
+- **Modules**: feature-owned business logic. The `users` module contains entities, errors, contracts, and use cases together.
+- **Providers**: concrete adapters for MongoDB persistence, bcrypt password hashing, and JWT token handling.
+
+`app.main` is the composition root. It wires middleware, exception handlers, database startup/shutdown, and the versioned API router.
 
 ## Prerequisites
 
@@ -384,35 +402,40 @@ curl -X GET http://localhost:8000/api/v1/users/me \
 
 ## Extending the API
 
-### Add New Routes
+### Add a New Feature
 
-1. Create new file in `app/routes/`
-2. Define routes using FastAPI router
-3. Import and include in `app/main.py`
+For a new bounded context or feature, follow the same production layout used by users:
+
+1. Add entities, errors, contracts, and use cases in `app/modules/<feature>/`.
+2. Add persistence or external-service adapters in `app/providers/<feature>/`.
+3. Add FastAPI schemas and routes in `app/api/v1/<feature>.py`.
 
 Example:
 
 ```python
-# app/routes/products.py
+# app/api/v1/products.py
 from fastapi import APIRouter
 
-router = APIRouter(prefix="/api/v1/products", tags=["Products"])
+router = APIRouter(prefix="/products", tags=["Products"])
 
 @router.get("/{product_id}")
 async def get_product(product_id: str):
-    # Implementation
+    # Call an application service here.
     pass
 ```
 
-Then in `app/main.py`:
+Then include it in the versioned API router:
+
 ```python
-from app.routes import products
-app.include_router(products.router)
+# app/api/v1/router.py
+from app.api.v1.products import router as products_router
+
+api_router.include_router(products_router)
 ```
 
 ### Add New Collections
 
-Update MongoDB collections in your routes by using `db["collection_name"]`.
+Create a repository adapter in `app/providers/<feature>/` and keep raw MongoDB collection access there. Module use cases should depend on contracts, not on `db["collection_name"]` directly.
 
 ## License
 

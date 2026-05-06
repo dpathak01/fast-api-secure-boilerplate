@@ -1,6 +1,6 @@
-"""Compatibility imports for the database infrastructure layer."""
+"""Database provider exports."""
 
-from app.providers.database import (
+from app.providers.database.mongodb import (
     MongoDBConnection,
     db_connection,
     get_database,
