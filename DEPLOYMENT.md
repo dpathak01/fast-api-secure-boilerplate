@@ -95,7 +95,7 @@ sudo usermod -a -G docker ec2-user
 
 ```bash
 # Clone repository
-git clone <repo-url>
+git clone https://github.com/dpathak01/fast-api-secure-boilerplate.git
 cd fast-api-secure-boilerplate
 
 # Setup environment
